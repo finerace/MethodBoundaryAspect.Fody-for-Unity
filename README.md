@@ -29,5 +29,9 @@ Or just add this to your weavers list:
 
 PROFIT!!
 
+## Last changes:
+
+Added async UniTask methods support!
+
 ### Original plugin
 https://github.com/vescon/MethodBoundaryAspect.Fody
