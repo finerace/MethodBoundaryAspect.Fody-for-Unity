@@ -31,7 +31,11 @@ PROFIT!!
 
 ## Last changes:
 
-Added async UniTask methods support!
+UniTask erorrs fix (v.1.1.1)
+
+Added async UniTask methods support! (v.1.1.0)
+
+Release! (v.1.0.0)
 
 ### Original plugin
 https://github.com/vescon/MethodBoundaryAspect.Fody
