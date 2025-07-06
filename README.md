@@ -72,7 +72,7 @@ public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
 https://github.com/finerace/com.finerace.loxodon.fody.methodboundaryaspect.git
 ```
 
-### 2. Create `FodyWeavers.xml` in project root:
+### 2. Paste this to your `FodyWeavers.xml` in Assets\LoxodonFramework\Editor\AppData:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
