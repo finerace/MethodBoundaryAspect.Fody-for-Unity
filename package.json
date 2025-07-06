@@ -1,7 +1,7 @@
 {
   "name": "com.finerace.loxodon.fody.methodboundaryaspect",
   "displayName": "Loxodon MethodBoundaryAspect.Fody Plugin",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "unity": "2018.4",
   "description": "This is a plugin for static weaving code that integrates MethodBoundaryAspect.Fody into a Unity project using the Loxodon Framework. (UniTask support!)",
   "license": "MIT",
