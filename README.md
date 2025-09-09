@@ -42,7 +42,9 @@ Same functionality, less boilerplate. **Focus on business logic, not logging plu
 ```csharp
 using System;
 using System.Reflection;
+using UnityEngine;
 using MethodBoundaryAspect.Fody.Attributes;
+using OperationCanceledException = System.OperationCanceledException;
 
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor)]
 public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
@@ -74,8 +76,15 @@ public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
 ## Installation
 
 ### 1. Add via UPM:
+
+1.1:
 ```
-https://github.com/finerace/com.finerace.loxodon.fody.methodboundaryaspect.git
+https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Packages/com.vovgou.loxodon-framework-fody
+```
+
+1.2:
+```
+https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git
 ```
 
 ### 2. Paste this to your `FodyWeavers.xml` in Assets\LoxodonFramework\Editor\AppData:
@@ -102,7 +111,8 @@ https://github.com/finerace/com.finerace.loxodon.fody.methodboundaryaspect.git
 
 - Unity 2021.3+
 - Mono or IL2CPP
-- WARNING! Do not apply AOP attributes to classes. This will break the build process.
+
+**IMPORTANT:** Do not apply AOP attributes directly to classes (e.g., [LogMethod] public class MyClass). This is unsupported and will break your build process. Attributes should only be applied to methods and constructors.
 
 ## Changelog
 
