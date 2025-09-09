@@ -95,8 +95,8 @@ https://github.com/finerace/com.finerace.loxodon.fody.methodboundaryaspect.git
 ## Requirements
 
 - Unity 2021.3+
-- .NET Standard 2.0+
 - Mono or IL2CPP
+- WARNING! Do not apply AOP attributes to classes. This will break the build process.
 
 ## Changelog
 
