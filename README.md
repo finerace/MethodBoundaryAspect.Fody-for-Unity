@@ -40,6 +40,10 @@ Same functionality, less boilerplate. **Focus on business logic, not logging plu
 
 ### Create your own aspects:
 ```csharp
+using System;
+using System.Reflection;
+using MethodBoundaryAspect.Fody.Attributes;
+
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor)]
 public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
 {
@@ -63,6 +67,8 @@ public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
         args.FlowBehavior = FlowBehavior.Return;
     }
 }
+
+// WARNING! Do not apply AOP attributes to classes. This will break the build process.
 ```
 
 ## Installation
