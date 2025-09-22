@@ -59,7 +59,8 @@ public async UniTask LoadPlayerData(string playerId)
 
 This plugin allows you to encapsulate cross-cutting concerns into reusable **attributes**. Focus on your core logic and let aspects handle the rest.
 
-**✅ After AOP:**```csharp
+**✅ After AOP:**
+```csharp
 [LogMethod]
 [ProfileMethod]
 [HandleExceptions]
