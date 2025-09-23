@@ -110,8 +110,16 @@ public async UniTask LoadPlayerData(string playerId)
 
 #### Step 1: Install Dependencies via UPM
 Add the following packages in the Unity Package Manager using the "Add package from git URL..." option:
-1.  `https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Packages/com.vovgou.loxodon-framework-fody`
-2.  `https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git`
+
+1.  
+```
+https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Packages/com.vovgou.loxodon-framework-fody
+```
+
+2.  
+```
+https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git
+```
 
 #### Step 2: Configure FodyWeavers.xml
 Create or update the `FodyWeavers.xml` file located in `Assets/LoxodonFramework/Editor/AppData/` to include the aspect weaver.
@@ -329,8 +337,16 @@ public async UniTask LoadPlayerData(string playerId)
 
 #### Шаг 1: Установите зависимости через UPM
 Добавьте следующие пакеты в Unity Package Manager, используя опцию "Add package from git URL...":
-1.  `https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Packages/com.vovgou.loxodon-framework-fody`
-2.  `https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git`
+
+1. 
+```
+https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Packages/com.vovgou.loxodon-framework-fody
+```
+
+2.  
+```
+https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git
+```
 
 #### Шаг 2: Настройте FodyWeavers.xml
 Создайте или обновите файл `FodyWeavers.xml` в папке `Assets/LoxodonFramework/Editor/AppData/`, чтобы подключить обработчик аспектов.
