@@ -1,6 +1,7 @@
 <p align="right">
   <img src="https://flagpedia.net/data/flags/w20/ru.png" width="20" alt="Русский">
   <a href="#methodboundaryaspectfody-для-unity"> Русская версия</a>
+  <a href="https://github.com/FineRace">
   <img src="https://i.postimg.cc/nzjMnxmF/mini-icon.png" width="30" alt="icon" align="left">
 </p>
 
@@ -228,6 +229,7 @@ public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
 <p align="right">
   <img src="https://flagpedia.net/data/flags/w20/gb.png" width="20" alt="English">
   <a href="#methodboundaryaspectfody-for-unity"> English Version</a>
+  <a href="https://github.com/FineRace">
   <img src="https://i.postimg.cc/nzjMnxmF/mini-icon.png" width="30" alt="icon" align="left">
 </p>
 
