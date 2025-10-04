@@ -1,0 +1,74 @@
+{
+  "runtimeTarget": {
+    "name": ".NETStandard,Version=v2.1/",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETStandard,Version=v2.1": {},
+    ".NETStandard,Version=v2.1/": {
+      "MethodBoundaryAspect/1.0.0": {
+        "dependencies": {
+          "Fody": "6.7.0",
+          "FodyPackaging": "6.7.0",
+          "Microsoft.SourceLink.GitHub": "8.0.0"
+        },
+        "runtime": {
+          "MethodBoundaryAspect.dll": {}
+        }
+      },
+      "Fody/6.7.0": {},
+      "FodyPackaging/6.7.0": {},
+      "Microsoft.Build.Tasks.Git/8.0.0": {},
+      "Microsoft.SourceLink.Common/8.0.0": {},
+      "Microsoft.SourceLink.GitHub/8.0.0": {
+        "dependencies": {
+          "Microsoft.Build.Tasks.Git": "8.0.0",
+          "Microsoft.SourceLink.Common": "8.0.0"
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MethodBoundaryAspect/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Fody/6.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-apsA8Hp9sAuOVmn9byPnCuqiQEjhAApqwNfEG+Gu0OyHUZfjHhLwvNQnAaONDdHWDXP/pBgpGXuscVwfEym8zQ==",
+      "path": "fody/6.7.0",
+      "hashPath": "fody.6.7.0.nupkg.sha512"
+    },
+    "FodyPackaging/6.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WbhsEh6Y7VYIlIg8yJkUWJZbb3MiRakXgwkfj+IslOQpiFvOGewPyiKuDpJPXeaom2fIxbSoHFVBQaRYID1Y+A==",
+      "path": "fodypackaging/6.7.0",
+      "hashPath": "fodypackaging.6.7.0.nupkg.sha512"
+    },
+    "Microsoft.Build.Tasks.Git/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bZKfSIKJRXLTuSzLudMFte/8CempWjVamNUR5eHJizsy+iuOuO/k2gnh7W0dHJmYY0tBf+gUErfluCv5mySAOQ==",
+      "path": "microsoft.build.tasks.git/8.0.0",
+      "hashPath": "microsoft.build.tasks.git.8.0.0.nupkg.sha512"
+    },
+    "Microsoft.SourceLink.Common/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-dk9JPxTCIevS75HyEQ0E4OVAFhB2N+V9ShCXf8Q6FkUQZDkgLI12y679Nym1YqsiSysuQskT7Z+6nUf3yab6Vw==",
+      "path": "microsoft.sourcelink.common/8.0.0",
+      "hashPath": "microsoft.sourcelink.common.8.0.0.nupkg.sha512"
+    },
+    "Microsoft.SourceLink.GitHub/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-G5q7OqtwIyGTkeIOAc3u2ZuV/kicQaec5EaRnc0pIeSnh9LUjj+PYQrJYBURvDt7twGl2PKA7nSN0kz1Zw5bnQ==",
+      "path": "microsoft.sourcelink.github/8.0.0",
+      "hashPath": "microsoft.sourcelink.github.8.0.0.nupkg.sha512"
+    }
+  }
+}

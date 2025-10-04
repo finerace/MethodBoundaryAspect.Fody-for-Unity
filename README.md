@@ -120,7 +120,7 @@ https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Pac
 
 2.  
 ```
-https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git
+https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git?path=/com.finerace.loxodon.fody.methodboundaryaspect
 ```
 
 #### Step 2: Configure FodyWeavers.xml
@@ -349,7 +349,7 @@ https://github.com/vovgou/loxodon-framework.git?path=/Loxodon.Framework.Fody/Pac
 
 2.  
 ```
-https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git
+https://github.com/finerace/MethodBoundaryAspect.Fody-for-Unity.git?path=/com.finerace.loxodon.fody.methodboundaryaspect
 ```
 
 #### Шаг 2: Настройте FodyWeavers.xml
