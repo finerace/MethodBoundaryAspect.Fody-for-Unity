@@ -51,7 +51,7 @@ Unity development is full of repetitive tasks: logging method calls, handling ex
 
 **❌ Before AOP:**
 ```csharp
-public async UniTask LoadPlayerData(string playerId)
+public async UniTask<PlayerData> LoadPlayerData(string playerId)
 {
     Debug.Log($"[LoadPlayerData] Entry: {playerId}");
     var stopwatch = Stopwatch.StartNew();
@@ -80,7 +80,7 @@ This plugin allows you to encapsulate cross-cutting concerns into reusable **att
 [LogMethod]
 [ProfileMethod]
 [HandleExceptions]
-public async UniTask LoadPlayerData(string playerId)
+public async UniTask<PlayerData> LoadPlayerData(string playerId)
 {
     var data = await _api.GetPlayerData(playerId);
     return data;
@@ -416,7 +416,7 @@ public void MayThrowException() => throw new Exception("Something went wrong!");
 
 **❌ До AOP:**
 ```csharp
-public async UniTask LoadPlayerData(string playerId)
+public async UniTask<PlayerData> LoadPlayerData(string playerId)
 {
     Debug.Log($"[LoadPlayerData] Вход: {playerId}");
     var stopwatch = Stopwatch.StartNew();
@@ -445,7 +445,7 @@ public async UniTask LoadPlayerData(string playerId)
 [LogMethod]
 [ProfileMethod]
 [HandleExceptions]
-public async UniTask LoadPlayerData(string playerId)
+public async UniTask<PlayerData> LoadPlayerData(string playerId)
 {
     var data = await _api.GetPlayerData(playerId);
     return data;
