@@ -1,10 +1,10 @@
 <p align="right">
+  <a href="https://github.com/FineRace">
+  <img src="https://i.postimg.cc/nzjMnxmF/mini-icon.png" width="30" alt="icon" align="left">
   <a href="#пишите-чистый-c-код-без-воды-с-помощью-аспектно-ориентированного-программирования">
     <img src="https://flagpedia.net/data/flags/w20/ru.png" width="20" alt="Русский">
     Русская версия
-  </a>
-  <a href="https://github.com/FineRace">
-  <img src="https://i.postimg.cc/nzjMnxmF/mini-icon.png" width="30" alt="icon" align="left">
+  </a> 
 </p>
 
 <p align="center">
