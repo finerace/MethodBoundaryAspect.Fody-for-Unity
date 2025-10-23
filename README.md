@@ -1,12 +1,12 @@
 <p align="right">
   <img src="https://flagpedia.net/data/flags/w20/ru.png" width="20" alt="Русский">
-  <a href="#methodboundaryaspectfody-для-unity"> Русская версия</a>
+  <a href="#пишите-чистый-c-код-без-воды-с-помощью-аспектно-ориентированного-программирования"> Русская версия</a>
   <a href="https://github.com/FineRace">
   <img src="https://i.postimg.cc/nzjMnxmF/mini-icon.png" width="30" alt="icon" align="left">
 </p>
 
 <p align="center">
-  <h1 align="center">MethodBoundaryAspect.Fody for Unity</h1>
+  <img src="https://i.postimg.cc/cJJyH8Pk/logo1.png" width="550" alt="logo">
   <h3 align="center">Write clean, boilerplate-free C# code with the power of Aspect-Oriented Programming.</h3>
 </p>
 
@@ -234,8 +234,7 @@ public sealed class SafeExecutionAttribute : OnMethodBoundaryAspect
 </p>
 
 <p align="center">
-  <!-- A simple, clean logo/banner would go here. For now, the title serves this purpose. -->
-  <h1 align="center">MethodBoundaryAspect.Fody для Unity</h1>
+  <img src="https://i.postimg.cc/cJJyH8Pk/logo1.png" width="550" alt="logo">
   <h3 align="center">Пишите чистый C#-код без "воды" с помощью Аспектно-Ориентированного Программирования.</h3>
 </p>
 
