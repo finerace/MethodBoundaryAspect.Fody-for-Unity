@@ -17,3 +17,13 @@ D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryA
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.sourcelink.json
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.dll
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.pdb
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\bin\Debug\net462\MethodBoundaryAspect.dll
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\bin\Debug\net462\MethodBoundaryAspect.pdb
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.csproj.AssemblyReference.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.AssemblyInfoInputs.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.AssemblyInfo.cs
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.csproj.CoreCompileInputs.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.sourcelink.json
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.dll
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\net462\MethodBoundaryAspect.pdb

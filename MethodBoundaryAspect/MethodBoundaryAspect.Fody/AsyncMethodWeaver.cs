@@ -260,6 +260,105 @@ namespace MethodBoundaryAspect.Fody
             }
         }
 
+        protected override void WeaveOnExit(bool hasReturnValue, NamedInstructionBlockChain returnValue)
+        {
+            var moveNextProcessor = _moveNext.Body.GetILProcessor();
+            var onExitAspects = _aspects
+                .Where(x => x.AspectMethods.HasFlag(AspectMethods.OnExit))
+                .Reverse()
+                .OfType<AspectDataOnAsyncMethod>()
+                .ToList();
+
+            if (!onExitAspects.Any())
+                return;
+
+            var builderField = _moveNext.DeclaringType.Fields.FirstOrDefault(f =>
+                f.FieldType.FullName.Contains("AsyncTaskMethodBuilder") ||
+                f.FieldType.FullName.Contains("AsyncUniTaskMethodBuilder"));
+
+            if (builderField == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MethodBoundaryAspect] Could not find a builder field in '{_method.FullName}'. Skipping OnExit weaving for this method.");
+                return;
+            }
+
+            var builderTypeDef = builderField.FieldType.GetElementType().Resolve();
+            var allInstructions = _moveNext.Body.Instructions.ToList();
+            var exceptionHandlers = _moveNext.Body.ExceptionHandlers;
+
+            foreach (var instruction in allInstructions)
+            {
+                // ЗОЛОТОЕ ПРАВИЛО БЕЗОПАСНОСТИ:
+                // Никогда не трогать код внутри catch-блоков.
+                bool isInCatchBlock = exceptionHandlers.Any(h =>
+                    h.HandlerType == ExceptionHandlerType.Catch &&
+                    h.HandlerStart != null && h.HandlerEnd != null &&
+                    instruction.Offset >= h.HandlerStart.Offset &&
+                    instruction.Offset < h.HandlerEnd.Offset);
+
+                if (isInCatchBlock)
+                    continue;
+
+                if ((instruction.OpCode != OpCodes.Call && instruction.OpCode != OpCodes.Callvirt) ||
+                    !(instruction.Operand is MethodReference mr) || mr.Name != "SetResult" ||
+                    mr.DeclaringType.Resolve() != builderTypeDef)
+                {
+                    continue;
+                }
+                
+                var originalSetResult = mr;
+                
+                // Обработка Task<T> (с возвращаемым значением)
+                if (originalSetResult.Parameters.Count == 1)
+                {
+                    var originalLoadInstruction = instruction.Previous;
+
+                    var builderInstanceType = (GenericInstanceType)builderField.FieldType;
+                    var concreteReturnType = builderInstanceType.GenericArguments[0];
+                    var tempReturnValueVar = new VariableDefinition(concreteReturnType);
+                    _moveNext.Body.Variables.Add(tempReturnValueVar);
+                    var tempPersistable = new VariablePersistable(tempReturnValueVar);
+
+                    var blockToInsert = new InstructionBlockChain();
+                    blockToInsert.Add(new InstructionBlock("Clone original load", originalLoadInstruction.Clone()));
+                    blockToInsert.Add(new InstructionBlock("Store to temp var", Instruction.Create(OpCodes.Stloc, tempReturnValueVar)));
+                    
+                    foreach (var aspect in onExitAspects)
+                    {
+                        if (HasMultipleAspects)
+                            blockToInsert.Add(aspect.LoadTagInMoveNext(ExecutionArgs));
+                        
+                        blockToInsert.Add(aspect.CallOnExitInMoveNext(ExecutionArgs, tempPersistable));
+                    }
+
+                    blockToInsert.Add(new InstructionBlock("Load from temp var", Instruction.Create(OpCodes.Ldloc, tempReturnValueVar)));
+                    
+                    foreach (var newInstruction in blockToInsert.InstructionBlocks.SelectMany(b => b.Instructions))
+                    {
+                        moveNextProcessor.InsertBefore(instruction, newInstruction);
+                    }
+                    
+                    moveNextProcessor.Remove(originalLoadInstruction);
+                }
+                else if (originalSetResult.Parameters.Count == 0)
+                {
+                    var blockToInsert = new InstructionBlockChain();
+                    foreach (var aspect in onExitAspects)
+                    {
+                        if (HasMultipleAspects)
+                            blockToInsert.Add(aspect.LoadTagInMoveNext(ExecutionArgs));
+                        
+                        blockToInsert.Add(aspect.CallOnExitInMoveNext(ExecutionArgs));
+                    }
+                    
+                    foreach (var newInstruction in blockToInsert.InstructionBlocks.SelectMany(b => b.Instructions))
+                    {
+                        moveNextProcessor.InsertBefore(instruction, newInstruction);
+                    }
+                }
+            }
+        }
+
         static bool IsStateMachineCatchBlock(ExceptionHandler handler)
         {
             for (var i = handler.HandlerStart; i != handler.HandlerEnd; i = i.Next)
@@ -270,11 +369,10 @@ namespace MethodBoundaryAspect.Fody
                 if (i.Operand is FieldReference field)
                 {
                     var fieldTypeName = field.FieldType.FullName;
-                    // Проверяем стандартные Task builders
+                    
                     if (fieldTypeName.StartsWith(typeof(AsyncTaskMethodBuilder).FullName))
                         return true;
                     
-                    // Проверяем UniTask builders
                     if (fieldTypeName != null && 
                         (fieldTypeName.Contains("AsyncUniTaskMethodBuilder") || 
                          fieldTypeName.Contains("AsyncUniTaskVoidMethodBuilder")))

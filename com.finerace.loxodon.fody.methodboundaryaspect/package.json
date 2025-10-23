@@ -22,5 +22,6 @@
   },
   "publishConfig": {
     "registry": "https://package.openupm.com"
-  }
+  },
+  "_fingerprint": "644e5a3aeac6d1496636c0229a967b21cfaca2f8"
 }

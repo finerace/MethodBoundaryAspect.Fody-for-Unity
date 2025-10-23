@@ -307,13 +307,20 @@ namespace MethodBoundaryAspect.Fody
             }
         }
 
-        public static FieldReference AddPublicInstanceField(this TypeReference typeRef, TypeReference fieldType)
+        public static FieldDefinition AddPublicInstanceFieldDefinition(this TypeDefinition typeDef, TypeReference fieldType)
         {
-            var typeDef = typeRef.Resolve();
             var field = new FieldDefinition(typeDef.NextAllowableMemberName(), FieldAttributes.Public, fieldType);
             field.DeclaringType = typeDef;
             typeDef.Fields.Add(field);
-            return new FieldReference(field.Name, field.FieldType, typeRef);
+            return field;
+        }
+
+        public static FieldReference AddPublicInstanceField(this TypeReference typeRef, TypeReference fieldType)
+        {
+            var typeDef = typeRef.Resolve();
+            var fieldDef = typeDef.AddPublicInstanceFieldDefinition(fieldType);
+            
+            return new FieldReference(fieldDef.Name, fieldDef.FieldType, typeRef);
         }
 
         static string NextAllowableMemberName(this TypeDefinition typeDef)

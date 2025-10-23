@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "MZOln2ao7OI=",
+  "dgSpecHash": "l3hnEpeEXQ4=",
   "success": true,
-  "projectFilePath": "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect.Fody\\MethodBoundaryAspect.Fody.csproj",
+  "projectFilePath": "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect.Fody\\MethodBoundaryAspect.Fody.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\admin\\.nuget\\packages\\fodyhelpers\\6.7.0\\fodyhelpers.6.7.0.nupkg.sha512",
     "C:\\Users\\admin\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",

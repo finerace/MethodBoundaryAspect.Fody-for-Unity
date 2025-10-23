@@ -13,6 +13,9 @@ namespace MethodBoundaryAspect.Fody
 
         private readonly ReferenceFinder _referenceFinder;
         private readonly InstructionBlockCreator _creator;
+        
+        // NEW PUBLIC PROPERTY to expose the instance of InstructionBlockCreator
+        public InstructionBlockCreator InstructionBlockCreator => _creator;
 
         public InstructionBlockChainCreator(
             MethodDefinition method, 
@@ -396,8 +399,6 @@ namespace MethodBoundaryAspect.Fody
             if (!typeReference.HasGenericParameters)
                 return typeReference;
 
-            // workaround for method in generic type
-            // https://stackoverflow.com/questions/4968755/mono-cecil-call-generic-base-class-method-from-other-assembly
             var genericParameters = typeReference.GenericParameters
                 .Select(x => x.GetElementType())
                 .ToArray();
@@ -407,8 +408,6 @@ namespace MethodBoundaryAspect.Fody
 
         private static MethodReference FixMethodReference(TypeReference declaringType, MethodReference targetMethod)
         {
-            // Taken and adapted from
-            // https://stackoverflow.com/questions/4968755/mono-cecil-call-generic-base-class-method-from-other-assembly
             if (targetMethod is MethodDefinition)
             {
                 var newTargetMethod = new MethodReference(targetMethod.Name, targetMethod.ReturnType, declaringType)

@@ -15,12 +15,15 @@ namespace MethodBoundaryAspect.Fody
 
         public IPersistable TagPersistable { get; protected set; }
         
-        public AspectData(AspectInfo info, AspectMethods methods, MethodDefinition method, ModuleDefinition module)
+        protected readonly IGenericParameterProvider _context;
+
+        public AspectData(AspectInfo info, AspectMethods methods, MethodDefinition method, ModuleDefinition module, IGenericParameterProvider context = null)
         {
             Info = info;
             AspectMethods = methods;
             _method = method;
             _module = module;
+            _context = context; // Can be null for non-generic methods
             _referenceFinder = new ReferenceFinder(module);
             _creator = new InstructionBlockChainCreator(method, module);
         }

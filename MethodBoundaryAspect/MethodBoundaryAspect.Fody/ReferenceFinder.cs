@@ -14,23 +14,53 @@ namespace MethodBoundaryAspect.Fody
             _moduleDefinition = moduleDefinition;
         }
 
-        public MethodReference GetMethodReference(Type declaringType, Func<MethodDefinition, bool> predicate)
+        public MethodReference GetMethodReference(Type declaringType, Func<MethodDefinition, bool> predicate, IGenericParameterProvider context = null)
         {
-            return GetMethodReference(GetTypeReference(declaringType), predicate);
+            return GetMethodReference(GetTypeReference(declaringType), predicate, context);
         }
 
-        public MethodReference GetMethodReference(TypeReference typeReference, Func<MethodDefinition, bool> predicate)
+        public MethodReference GetMethodReference(TypeReference typeReference, Func<MethodDefinition, bool> predicate, IGenericParameterProvider context = null)
         {
-            var typeDefinition = typeReference.Resolve();
+            var startTypeDefinition = typeReference.Resolve();
+            var currentTypeDefinition = startTypeDefinition;
+            MethodDefinition methodDefinition = null;
 
-            MethodDefinition methodDefinition;
             do
             {
-                methodDefinition = typeDefinition.Methods.FirstOrDefault(predicate);
-                typeDefinition = typeDefinition.BaseType?.Resolve();
-            } while (methodDefinition == null && typeDefinition != null);
+                methodDefinition = currentTypeDefinition.Methods.FirstOrDefault(predicate);
+                if (methodDefinition != null)
+                    break;
+                currentTypeDefinition = currentTypeDefinition.BaseType?.Resolve();
+            } while (currentTypeDefinition != null);
 
-            return _moduleDefinition.ImportReference(methodDefinition);
+            if (methodDefinition == null)
+                throw new InvalidOperationException(
+                    $"Could not find a method matching the predicate on type {typeReference.FullName} or its base types.");
+
+            var importedMethodRef = _moduleDefinition.ImportReference(methodDefinition, context);
+
+            if (methodDefinition.DeclaringType.Resolve() == startTypeDefinition)
+                return importedMethodRef;
+
+            var importedDeclaringType = _moduleDefinition.ImportReference(typeReference, context);
+            
+            var finalMethodReference = new MethodReference(
+                importedMethodRef.Name,
+                importedMethodRef.ReturnType,
+                importedDeclaringType)
+            {
+                HasThis = importedMethodRef.HasThis,
+                ExplicitThis = importedMethodRef.ExplicitThis,
+                CallingConvention = importedMethodRef.CallingConvention
+            };
+
+            foreach (var parameter in importedMethodRef.Parameters)
+                finalMethodReference.Parameters.Add(new ParameterDefinition(parameter.ParameterType));
+
+            foreach (var generic_parameter in importedMethodRef.GenericParameters)
+                finalMethodReference.GenericParameters.Add(new GenericParameter(generic_parameter.Name, finalMethodReference));
+
+            return finalMethodReference;
         }
 
         public MethodReference GetConstructorReference(TypeReference typeReference, Func<MethodDefinition, bool> predicate)
@@ -43,9 +73,6 @@ namespace MethodBoundaryAspect.Fody
         public TypeReference GetTypeReference(Type type, string netCoreAssemblyHint = null)
         {
             var importedType = _moduleDefinition.ImportReference(type);
-            // On .NET Core, we need to rewrite mscorlib types to use the
-            // dot net assemblies from the weaved assembly and not the ones
-            // used by the weaver itself.
             if (importedType is TypeSpecification)
                 return importedType;
 

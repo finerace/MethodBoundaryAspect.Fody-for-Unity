@@ -59,19 +59,108 @@ namespace MethodBoundaryAspect.Fody
             WeaveOnEntry(returnValue);
             
             HandleBody(arguments, returnValue?.Variable, out var instructionCallStart, out var instructionCallEnd);
+            
+            // This instruction marks the point where normal execution continues after the try/catch.
+            var continuationInstruction = _ilProcessor.Create(OpCodes.Nop);
 
-            var instructionAfterCall = WeaveOnExit(hasReturnValue, returnValue);
+            if (_aspects.Any(x => (x.AspectMethods & AspectMethods.OnException) != 0))
+            {
+                // WeaveOnException is now virtual, allowing AsyncWeaver to override it.
+                WeaveOnException(
+                    _aspects, 
+                    instructionCallStart, 
+                    instructionCallEnd, 
+                    continuationInstruction, 
+                    returnValue);
+            }
+            else
+            {
+                // If there's no exception handler, we just need a 'leave' to jump over any potential handler code.
+                var tryLeaveInstruction = _ilProcessor.Create(OpCodes.Leave, continuationInstruction);
+                _ilProcessor.InsertAfter(instructionCallEnd, tryLeaveInstruction);
+            }
+
+            _ilProcessor.Append(continuationInstruction);
+            
+            // WeaveOnExit returns void. Its return value is no longer used.
+            WeaveOnExit(hasReturnValue, returnValue);
 
             HandleReturnValue(hasReturnValue, returnValue);
 
-            if (_aspects.Any(x => (x.AspectMethods & AspectMethods.OnException) != 0))
-                WeaveOnException(_aspects, instructionCallStart, instructionCallEnd, instructionAfterCall, returnValue);
-
             Optimize();
-
             Finish();
-
             WeaveCounter++;
+        }
+        
+        protected virtual void WeaveOnException(IList<AspectData> allAspects, Instruction instructionCallStart, Instruction instructionCallEnd, Instruction instructionAfterCall, IPersistable returnValue)
+        {
+            var body = _method.Body;
+            var processor = body.GetILProcessor();
+            var continuationInstruction = instructionAfterCall;
+
+            // --- CATCH HANDLER BODY (inserted right after the try block) ---
+            var handlerInstructions = new List<Instruction>();
+
+            var handlerStartChain = _creator.SaveThrownException();
+            handlerInstructions.AddRange(handlerStartChain.InstructionBlocks.SelectMany(b => b.Instructions));
+            var handlerStartInstruction = handlerStartChain.First;
+
+            var loadExceptionChain = _creator.LoadValueOnStack(handlerStartChain);
+            handlerInstructions.AddRange(loadExceptionChain.InstructionBlocks.SelectMany(b => b.Instructions));
+
+            var setExceptionChain = _creator.SetMethodExecutionArgsExceptionFromStack(ExecutionArgs);
+            handlerInstructions.AddRange(setExceptionChain.InstructionBlocks.SelectMany(b => b.Instructions));
+
+            var rethrowInstruction = processor.Create(OpCodes.Rethrow);
+            var continueFlowInstruction = processor.Create(OpCodes.Nop);
+
+            var onExceptionAspects = allAspects.Where(a => (a.AspectMethods & AspectMethods.OnException) != 0).Reverse().ToList();
+            foreach (var aspect in onExceptionAspects)
+            {
+                if (HasMultipleAspects)
+                {
+                    var loadTagChain = _creator.LoadMethodExecutionArgsTagFromPersistable(ExecutionArgs, aspect.TagPersistable);
+                    handlerInstructions.AddRange(loadTagChain.InstructionBlocks.SelectMany(b => b.Instructions));
+                }
+                var callAspectChain = _creator.CallAspectOnException(aspect, ExecutionArgs);
+                handlerInstructions.AddRange(callAspectChain.InstructionBlocks.SelectMany(b => b.Instructions));
+                var jumpToContinueChain = new InstructionBlockChain();
+                jumpToContinueChain.Add(new InstructionBlock("Branch to Continue", processor.Create(OpCodes.Br, continueFlowInstruction)));
+                var flowCheckChain = _creator.IfFlowBehaviorIsAnyOf(args: ExecutionArgs, nextInstruction: rethrowInstruction, thenBody: jumpToContinueChain, behaviors: new[] { 1, 3 });
+                handlerInstructions.AddRange(flowCheckChain.InstructionBlocks.SelectMany(b => b.Instructions));
+            }
+
+            handlerInstructions.Add(rethrowInstruction);
+            handlerInstructions.Add(continueFlowInstruction);
+            
+            if (returnValue != null)
+            {
+                var readReturnChain = _creator.ReadReturnValue(ExecutionArgs, returnValue);
+                handlerInstructions.AddRange(readReturnChain.InstructionBlocks.SelectMany(b => b.Instructions));
+            }
+
+            handlerInstructions.Add(processor.Create(OpCodes.Leave, continuationInstruction));
+
+            // --- INSERTION AND METADATA ---
+            var tryLeaveInstruction = processor.Create(OpCodes.Leave, continuationInstruction);
+            processor.InsertAfter(instructionCallEnd, tryLeaveInstruction);
+            
+            var cursor = tryLeaveInstruction;
+            foreach (var instruction in handlerInstructions)
+            {
+                processor.InsertAfter(cursor, instruction);
+                cursor = instruction;
+            }
+
+            var handler = new ExceptionHandler(ExceptionHandlerType.Catch)
+            {
+                CatchType = _creator.GetExceptionTypeReference(),
+                TryStart = instructionCallStart,
+                TryEnd = handlerStartInstruction,
+                HandlerStart = handlerStartInstruction,
+                HandlerEnd = cursor.Next 
+            };
+            body.ExceptionHandlers.Add(handler);
         }
 
         protected virtual void Setup()
@@ -91,7 +180,7 @@ namespace MethodBoundaryAspect.Fody
 
             var clonedMethod = new MethodDefinition(targetMethodName, methodAttributes, method.ReturnType)
             {
-                AggressiveInlining = true, // try to get rid of additional stack frame
+                AggressiveInlining = true,
                 HasThis = method.HasThis,
                 ExplicitThis = method.ExplicitThis,
                 CallingConvention = method.CallingConvention
@@ -112,22 +201,6 @@ namespace MethodBoundaryAspect.Fody
 
             if (method.HasGenericParameters)
             {
-                //Contravariant:
-                //  The generic type parameter is contravariant. A contravariant type parameter can appear as a parameter type in method signatures.  
-                //Covariant:
-                //  The generic type parameter is covariant. A covariant type parameter can appear as the result type of a method, the type of a read-only field, a declared base type, or an implemented interface. 
-                //DefaultConstructorConstraint:
-                //  A type can be substituted for the generic type parameter only if it has a parameterless constructor. 
-                //None:
-                //  There are no special flags. 
-                //NotNullableValueTypeConstraint:
-                //  A type can be substituted for the generic type parameter only if it is a value type and is not nullable. 
-                //ReferenceTypeConstraint:
-                //  A type can be substituted for the generic type parameter only if it is a reference type. 
-                //SpecialConstraintMask:
-                //  Selects the combination of all special constraint flags. This value is the result of using logical OR to combine the following flags: DefaultConstructorConstraint, ReferenceTypeConstraint, and NotNullableValueTypeConstraint. 
-                //VarianceMask:
-                //  Selects the combination of all variance flags. This value is the result of using logical OR to combine the following flags: Contravariant and Covariant. 
                 foreach (var parameter in method.GenericParameters)
                 {
                     var clonedParameter = new GenericParameter(parameter.Name, clonedMethod);
@@ -252,7 +325,7 @@ namespace MethodBoundaryAspect.Fody
                 }
                 else
                 {
-                    for (var i = entry.index-1; i >= 0; --i)
+                    for (var i = entry.index; i >= 0; --i)
                     {
                         var onExitAspect = _aspects[i];
                         if ((onExitAspect.AspectMethods & AspectMethods.OnExit) == 0) 
@@ -299,7 +372,6 @@ namespace MethodBoundaryAspect.Fody
             var allowChangingInputArguments = _aspects.Any(x => x.Info.AllowChangingInputArguments);
             if (allowChangingInputArguments)
             {
-                // get arguments from ExecutionArgs because they could have been changed in aspect code
                 args = _method.Parameters
                     .Select((x, i) => new ArrayElementLoadable(arguments.Variable, i, x, _method.Body.GetILProcessor(), _creator))
                     .Cast<ILoadable>()
@@ -322,7 +394,6 @@ namespace MethodBoundaryAspect.Fody
             
             if (allowChangingInputArguments)
             {
-                // write byref variables back for origin source method
                 var copyBackInstructions = new List<Instruction>();
                 foreach (var parameter in _method.Parameters.Where(x => x.ParameterType.IsByReference))
                 {
@@ -348,14 +419,16 @@ namespace MethodBoundaryAspect.Fody
             instructionCallEnd = callSourceMethod.Last;
         }
 
-        protected virtual Instruction WeaveOnExit(bool hasReturnValue, NamedInstructionBlockChain returnValue)
+        protected virtual void WeaveOnExit(bool hasReturnValue, NamedInstructionBlockChain returnValue)
         {
             var onExitAspects = _aspects
                             .Where(x => x.AspectMethods.HasFlag(AspectMethods.OnExit))
                             .Reverse()
                             .ToList();
+            
+            // FIX: Removed the logic that stored the return value as it is now handled by the main Weave method structure.
+            // instructionAfterCall = setMethodExecutionArgsReturnValue.First;
 
-            Instruction instructionAfterCall = null;
             if (hasReturnValue && onExitAspects.Any())
             {
                 var loadReturnValue = _creator.LoadValueOnStack(returnValue);
@@ -364,8 +437,6 @@ namespace MethodBoundaryAspect.Fody
                     ExecutionArgs,
                     loadReturnValue);
                 AddToEnd(setMethodExecutionArgsReturnValue);
-
-                instructionAfterCall = setMethodExecutionArgsReturnValue.First;
             }
 
             foreach (var aspect in onExitAspects)
@@ -378,8 +449,6 @@ namespace MethodBoundaryAspect.Fody
 
             if (hasReturnValue && onExitAspects.Any())
                 _creator.ReadReturnValue(ExecutionArgs, returnValue).Append(_ilProcessor);
-
-            return instructionAfterCall;
         }
 
         private void HandleReturnValue(bool hasReturnValue, NamedInstructionBlockChain returnValue)
@@ -390,94 +459,10 @@ namespace MethodBoundaryAspect.Fody
             AddToEnd(_creator.CreateReturn());
         }
 
-        protected virtual void WeaveOnException(IList<AspectData> allAspects, Instruction instructionCallStart, Instruction instructionCallEnd, Instruction instructionAfterCall, IPersistable returnValue)
-        {
-            var realInstructionAfterCall = instructionAfterCall ?? instructionCallEnd.Next;
-            var tryLeaveInstruction = Instruction.Create(OpCodes.Leave, realInstructionAfterCall);
-            _ilProcessor.InsertAfter(instructionCallEnd, tryLeaveInstruction);
-
-            var exception = _creator.SaveThrownException();
-            var exceptionHandlerCurrent = exception.InsertAfter(tryLeaveInstruction, _ilProcessor);
-
-            var pushException = _creator.LoadValueOnStack(exception);
-            exceptionHandlerCurrent = pushException.InsertAfter(exceptionHandlerCurrent, _ilProcessor);
-
-            var setExceptionFromStack =
-                _creator.SetMethodExecutionArgsExceptionFromStack(ExecutionArgs);
-            exceptionHandlerCurrent = setExceptionFromStack.InsertAfter(exceptionHandlerCurrent, _ilProcessor);
-            
-            var returnAfterHandling = new InstructionBlockChain();
-            if (returnValue != null)
-                returnAfterHandling.Add(returnValue.Load(false, false));
-            returnAfterHandling.Add(new InstructionBlock("Return", Instruction.Create(OpCodes.Ret)));
-
-            var indices = allAspects
-                .Select((asp, index) => new { asp, index })
-                .Where(x => (x.asp.AspectMethods & AspectMethods.OnException) != 0)
-                .Select(x => x.index)
-                .Reverse()
-                .ToList();
-            foreach (var index in indices)
-            {
-                var onExceptionAspect = allAspects[index];
-                if (HasMultipleAspects)
-                {
-                    var load = _creator.LoadMethodExecutionArgsTagFromPersistable(ExecutionArgs,
-                        onExceptionAspect.TagPersistable);
-                    exceptionHandlerCurrent = load.InsertAfter(exceptionHandlerCurrent, _ilProcessor);
-                }
-
-                var callAspectOnException =
-                    _creator.CallAspectOnException(onExceptionAspect, ExecutionArgs);
-                var nop = new InstructionBlock("Nop", Instruction.Create(OpCodes.Nop));
-
-                var callOnExitsAndReturn = new InstructionBlockChain();
-                for (var i = index-1; i >= 0; --i)
-                {
-                    var jthAspect = allAspects[i];
-                    if ((jthAspect.AspectMethods & AspectMethods.OnExit) == 0) 
-                        continue;
-                    if (HasMultipleAspects)
-                        callOnExitsAndReturn.Add(_creator.LoadMethodExecutionArgsTagFromPersistable(ExecutionArgs, jthAspect.TagPersistable));
-                    callOnExitsAndReturn.Add(_creator.CallAspectOnExit(jthAspect, ExecutionArgs));
-                }
-
-                if (returnValue != null)
-                    callOnExitsAndReturn.Add(_creator.ReadReturnValue(ExecutionArgs, returnValue));
-
-                callOnExitsAndReturn.Add(new InstructionBlock("Leave", Instruction.Create(OpCodes.Leave_S, returnAfterHandling.First)));
-
-                callAspectOnException.Add(_creator.IfFlowBehaviorIsAnyOf(ExecutionArgs, nop.First, callOnExitsAndReturn, 1, 3));
-
-                callAspectOnException.Add(nop);
-                callAspectOnException.InsertAfter(exceptionHandlerCurrent, _ilProcessor);
-                exceptionHandlerCurrent = callAspectOnException.Last;
-            }
-            
-            var flowBehaviorHandler = new InstructionBlockChain();
-            flowBehaviorHandler.Add(new InstructionBlock("throw", Instruction.Create(OpCodes.Rethrow)));
-            flowBehaviorHandler.Add(new InstructionBlock("Leave", Instruction.Create(OpCodes.Leave_S, realInstructionAfterCall)));
-            flowBehaviorHandler.InsertAfter(exceptionHandlerCurrent, _ilProcessor);
-
-            returnAfterHandling.InsertAfter(flowBehaviorHandler.Last, _ilProcessor);
-
-            _method.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Catch)
-            {
-                CatchType = _creator.GetExceptionTypeReference(),
-                TryStart = instructionCallStart,
-                TryEnd = tryLeaveInstruction.Next,
-                HandlerStart = tryLeaveInstruction.Next,
-                HandlerEnd = flowBehaviorHandler.Last.Next
-            });
-        }
-
         private void Optimize()
         {
-            // add DebuggerStepThrough attribute to avoid compiler searching for
-            // non existing source code for weaved il code
             var attributeCtor = _creator.GetDebuggerStepThroughAttributeCtorReference();
 
-            // Only add DebuggerStepThrough if not already present.
             if (_method.CustomAttributes.All(a => a.AttributeType.FullName != attributeCtor.DeclaringType.FullName))
                 _method.CustomAttributes.Add(new CustomAttribute(attributeCtor));
 

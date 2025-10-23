@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 
 namespace MethodBoundaryAspect.Fody
 {
@@ -12,16 +13,83 @@ namespace MethodBoundaryAspect.Fody
 
         private readonly MethodDefinition _method;
         private readonly ReferenceFinder _referenceFinder;
-
         private readonly ILProcessor _processor;
+        
+        private static MethodDefinition _safeCastMethod;
 
         public InstructionBlockCreator(MethodDefinition method, ReferenceFinder referenceFinder)
         {
             _method = method;
             _referenceFinder = referenceFinder;
             _processor = _method.Body.GetILProcessor();
+            
+            EnsureSafeCastHelperMethod(method.Module);
         }
-        
+
+        private void EnsureSafeCastHelperMethod(ModuleDefinition module)
+        {
+            if (_safeCastMethod != null && _safeCastMethod.Module == module)
+                return;
+
+            const string helperClassName = "MethodBoundaryAspectSafeCast";
+            var existingType = module.Types.FirstOrDefault(t => t.Name == helperClassName);
+            if (existingType != null)
+            {
+                _safeCastMethod = existingType.Methods.First(m => m.Name == "SafeCast");
+                return;
+            }
+
+            var typeAttributes = TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed;
+            var helperType = new TypeDefinition("", helperClassName, typeAttributes, module.TypeSystem.Object);
+            
+            var methodAttributes = MethodAttributes.Public | MethodAttributes.Static;
+            var safeCast = new MethodDefinition("SafeCast", methodAttributes, module.TypeSystem.Object);
+            safeCast.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None, module.TypeSystem.Object));
+            safeCast.Parameters.Add(new ParameterDefinition("targetType", ParameterAttributes.None, _referenceFinder.GetTypeReference(typeof(Type))));
+            
+            var il = safeCast.Body.GetILProcessor();
+            var targetTypeIsValueType = il.Create(OpCodes.Nop);
+            var returnDefault = il.Create(OpCodes.Nop);
+            var returnCastedValue = il.Create(OpCodes.Nop);
+            var end = il.Create(OpCodes.Ret);
+            
+            var isInstanceOfTypeMethod = _referenceFinder.GetMethodReference(typeof(Type), md => md.Name == "IsInstanceOfType");
+            var isValueTypeMethod = _referenceFinder.GetMethodReference(typeof(Type), md => md.Name == "get_IsValueType");
+            var createInstanceMethod = _referenceFinder.GetMethodReference(typeof(Activator), md => md.Name == "CreateInstance" && md.Parameters.Count == 1);
+
+            il.Append(il.Create(OpCodes.Ldarg_0)); 
+            il.Append(il.Create(OpCodes.Brtrue_S, targetTypeIsValueType));
+            il.Append(il.Create(OpCodes.Ldnull));
+            il.Append(il.Create(OpCodes.Ret));
+
+            il.Append(targetTypeIsValueType);
+            il.Append(il.Create(OpCodes.Ldarg_1)); 
+            il.Append(il.Create(OpCodes.Ldarg_0)); 
+            il.Append(il.Create(OpCodes.Callvirt, isInstanceOfTypeMethod));
+            il.Append(il.Create(OpCodes.Brtrue_S, returnCastedValue));
+            
+            il.Append(il.Create(OpCodes.Ldarg_1)); 
+            il.Append(il.Create(OpCodes.Callvirt, isValueTypeMethod));
+            il.Append(il.Create(OpCodes.Brfalse_S, returnDefault));
+            
+            il.Append(il.Create(OpCodes.Ldarg_1)); 
+            il.Append(il.Create(OpCodes.Call, createInstanceMethod));
+            il.Append(il.Create(OpCodes.Br_S, end));
+            
+            il.Append(returnDefault);
+            il.Append(il.Create(OpCodes.Ldnull));
+            il.Append(il.Create(OpCodes.Br_S, end));
+
+            il.Append(returnCastedValue);
+            il.Append(il.Create(OpCodes.Ldarg_0));
+
+            il.Append(end);
+            
+            helperType.Methods.Add(safeCast);
+            module.Types.Add(helperType);
+            _safeCastMethod = safeCast;
+        }
+
         public VariableDefinition CreateVariable(TypeReference variableTypeReference)
         {
             if (IsVoid(variableTypeReference))
@@ -51,9 +119,9 @@ namespace MethodBoundaryAspect.Fody
         {
             var createArrayInstructions = new List<Instruction>
             {
-                _processor.Create(OpCodes.Ldc_I4, _method.Parameters.Count), //method.Parameters.Count
-                _processor.Create(OpCodes.Newarr, objectTypeReference), // new object[method.Parameters.Count]
-                _processor.Create(OpCodes.Stloc, objectArray) // var objArray = new object[method.Parameters.Count]
+                _processor.Create(OpCodes.Ldc_I4, _method.Parameters.Count),
+                _processor.Create(OpCodes.Newarr, objectTypeReference),
+                _processor.Create(OpCodes.Stloc, objectArray)
             };
 
             foreach (var parameter in _method.Parameters)
@@ -99,14 +167,12 @@ namespace MethodBoundaryAspect.Fody
             var loadSetConstValuesToAspect = new List<Instruction>();
             if (aspect != null)
             {
-                // ctor parameters
                 var loadInstructions = aspect.Constructor.Parameters
                     .Zip(aspect.ConstructorArguments, (p, v) => new {Parameter = p, Value = v})
                     .SelectMany(x => LoadValueOnStack(x.Parameter.ParameterType, x.Value.Value))
                     .ToList();
                 loadConstValuesOnStack.AddRange(loadInstructions);
 
-                // named arguments
                 foreach (var property in aspect.Properties)
                 {
                     var propertyCopy = property;
@@ -208,7 +274,7 @@ namespace MethodBoundaryAspect.Fody
             return new InstructionBlock("CallInstanceMethod: " + methodReference.Name, instructions);
         }
 
-        private static List<Instruction> CreateInstanceMethodCallInstructions(
+        private List<Instruction> CreateInstanceMethodCallInstructions(
             MethodReference methodReference,
             ILoadable callerInstance,
             IPersistable returnValue,
@@ -217,7 +283,7 @@ namespace MethodBoundaryAspect.Fody
             return CreateMethodCallInstructions(methodReference, callerInstance, returnValue, arguments);
         }
 
-        private static List<Instruction> CreateMethodCallInstructions(
+        private List<Instruction> CreateMethodCallInstructions(
             MethodReference methodReference,
             ILoadable instance,
             IPersistable returnValue,
@@ -271,7 +337,6 @@ namespace MethodBoundaryAspect.Fody
                 }
                 if (methodReturnsVoid && !returnValueShouldBeStored)
                     return methodWork;
-                // Therefore, !methodReturnsVoid && returnValueShouldBeStored
                 
                 var castToType = returnValue.PersistedType;
                 var castFromType = methodDefinition.ReturnType;
@@ -282,6 +347,8 @@ namespace MethodBoundaryAspect.Fody
 
                     if (castFromType.IsByReference)
                         castFromType = ((ByReferenceType)castFromType).ElementType;
+                    
+                    // THE FIX: Calling the instance method from an instance context.
                     methodWork.AddRange(CastValueCurrentlyOnStack(castFromType, castToType));
                 }
                 return returnValue.Store(new InstructionBlock("", methodWork), castToType).Instructions.ToList();
@@ -295,20 +362,39 @@ namespace MethodBoundaryAspect.Fody
             return HandleReturnValue(instructions);
         }
 
-        public static IEnumerable<Instruction> CastValueCurrentlyOnStack(TypeReference fromType, TypeReference toType)
+        public IEnumerable<Instruction> CastValueCurrentlyOnStack(TypeReference fromType, TypeReference toType)
         {
             if (fromType.Equals(toType) || fromType.FullName.Equals(toType.FullName))
                 return Enumerable.Empty<Instruction>();
 
             if (fromType.FullName == typeof(object).FullName)
             {
-                if (toType.IsValueType || toType.IsGenericParameter)
-                    return new[] { Instruction.Create(OpCodes.Unbox_Any, toType) };
+                if (!toType.IsValueType && !toType.IsGenericParameter)
+                {
+                    return new[] { Instruction.Create(OpCodes.Castclass, toType) };
+                }
                 
-                return new[] { Instruction.Create(OpCodes.Castclass, toType) };
-            }
+                var instructions = new List<Instruction>();
+                
+                var getTypeFromHandleMethod = _referenceFinder.GetMethodReference(typeof(Type), md => md.Name == "GetTypeFromHandle");
+                instructions.Add(_processor.Create(OpCodes.Ldtoken, toType));
+                instructions.Add(_processor.Create(OpCodes.Call, getTypeFromHandleMethod));
 
-            throw new NotSupportedException("Cannot unbox non-object types.");
+                instructions.Add(_processor.Create(OpCodes.Call, _safeCastMethod));
+
+                if (toType.IsValueType || toType.IsGenericParameter)
+                {
+                    instructions.Add(_processor.Create(OpCodes.Unbox_Any, toType));
+                }
+                else
+                {
+                    instructions.Add(_processor.Create(OpCodes.Castclass, toType));
+                }
+                
+                return instructions;
+            }
+            
+            throw new NotSupportedException($"Cannot cast from '{fromType.FullName}' to '{toType.FullName}'. Only casting from System.Object is supported with enhanced safety.");
         }
 
         private IList<Instruction> LoadValueOnStack(TypeReference parameterType, object value)
@@ -445,89 +531,61 @@ namespace MethodBoundaryAspect.Fody
             yield return Instruction.Create(OpCodes.Ldloc, paramsArray);
             yield return Instruction.Create(OpCodes.Ldc_I4, parameterDefinition.Index);
             yield return Instruction.Create(OpCodes.Ldarg, parameterDefinition);
-            // Reset boolean flag variable to false
 
-            // If a parameter is passed by reference then you need to use Ldind
-            // ------------------------------------------------------------
             var paramType = parameterDefinition.ParameterType;
 
             if (paramType.IsByReference)
             {
                 var referencedTypeSpec = (TypeSpecification) paramType;
-
                 var pointerToValueTypeVariable = false;
                 
                 switch (referencedTypeSpec.ElementType.MetadataType)
                 {
-                        //Indirect load value of type int8 as int32 on the stack
                     case MetadataType.Boolean:
                     case MetadataType.SByte:
                         yield return Instruction.Create(OpCodes.Ldind_I1);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type int16 as int32 on the stack
                     case MetadataType.Int16:
                         yield return Instruction.Create(OpCodes.Ldind_I2);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type int32 as int32 on the stack
                     case MetadataType.Int32:
                         yield return Instruction.Create(OpCodes.Ldind_I4);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type int64 as int64 on the stack
-                        // Indirect load value of type unsigned int64 as int64 on the stack (alias for ldind.i8)
                     case MetadataType.Int64:
                     case MetadataType.UInt64:
                         yield return Instruction.Create(OpCodes.Ldind_I8);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type unsigned int8 as int32 on the stack
                     case MetadataType.Byte:
                         yield return Instruction.Create(OpCodes.Ldind_U1);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type unsigned int16 as int32 on the stack
                     case MetadataType.UInt16:
                     case MetadataType.Char:
                         yield return Instruction.Create(OpCodes.Ldind_U2);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type unsigned int32 as int32 on the stack
                     case MetadataType.UInt32:
                         yield return Instruction.Create(OpCodes.Ldind_U4);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type float32 as F on the stack
                     case MetadataType.Single:
                         yield return Instruction.Create(OpCodes.Ldind_R4);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type float64 as F on the stack
                     case MetadataType.Double:
                         yield return Instruction.Create(OpCodes.Ldind_R8);
                         pointerToValueTypeVariable = true;
                         break;
-
-                        // Indirect load value of type native int as native int on the stack
                     case MetadataType.IntPtr:
                     case MetadataType.UIntPtr:
                         yield return Instruction.Create(OpCodes.Ldind_I);
                         pointerToValueTypeVariable = true;
                         break;
-
                     default:
-                        // Need to check if it is a value type instance, in which case
-                        // we use Ldobj instruction to copy the contents of value type
-                        // instance to stack and then box it
                         if (referencedTypeSpec.ElementType.IsValueType || referencedTypeSpec.ElementType.IsGenericParameter)
                         {
                             yield return Instruction.Create(OpCodes.Ldobj, referencedTypeSpec.ElementType);
@@ -535,7 +593,6 @@ namespace MethodBoundaryAspect.Fody
                         }
                         else
                         {
-                            // It is a reference type so just use reference the pointer
                             yield return Instruction.Create(OpCodes.Ldind_Ref);
                         }
                         break;
@@ -543,31 +600,17 @@ namespace MethodBoundaryAspect.Fody
 
                 if (pointerToValueTypeVariable)
                 {
-                    // Box the de-referenced parameter type
                     yield return Instruction.Create(OpCodes.Box, referencedTypeSpec.ElementType);
                 }
-
             }
             else
             {
-
-                // If it is a value type then you need to box the instance as we are going 
-                // to add it to an array which is of type object (reference type)
-                // ------------------------------------------------------------
                 if (paramType.IsValueType || paramType.IsGenericParameter)
                 {
-                    // Box the parameter type
                     yield return Instruction.Create(OpCodes.Box, paramType);
                 }
-                else if (paramType.Name == "String")
-                {
-                    //var elementType = paramsArray.VariableType.GetElementType();
-                    //yield return Instruction.Create(OpCodes.Castclass, elementType);
-                }
             }
-
-            // Store parameter in object[] array
-            // ------------------------------------------------------------
+            
             yield return Instruction.Create(OpCodes.Stelem_Ref);
         }
 
@@ -575,6 +618,8 @@ namespace MethodBoundaryAspect.Fody
         {
             return type.Name == VoidType;
         }
+
+
 
         public Instruction CreateReturn()
         {

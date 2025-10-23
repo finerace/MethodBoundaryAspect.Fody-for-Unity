@@ -1,0 +1,75 @@
+{
+  "runtimeTarget": {
+    "name": ".NETStandard,Version=v2.0/",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETStandard,Version=v2.0": {},
+    ".NETStandard,Version=v2.0/": {
+      "MethodBoundaryAspect.Fody/1.0.0": {
+        "dependencies": {
+          "FodyHelpers": "6.7.0",
+          "NETStandard.Library": "2.0.3"
+        },
+        "runtime": {
+          "MethodBoundaryAspect.Fody.dll": {}
+        }
+      },
+      "FodyHelpers/6.7.0": {
+        "runtime": {
+          "lib/netstandard2.0/FodyHelpers.dll": {
+            "assemblyVersion": "6.7.0.0",
+            "fileVersion": "6.7.0.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.Pdb.dll": {
+            "assemblyVersion": "0.11.4.0",
+            "fileVersion": "0.11.4.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.Rocks.dll": {
+            "assemblyVersion": "0.11.4.0",
+            "fileVersion": "0.11.4.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.dll": {
+            "assemblyVersion": "0.11.4.0",
+            "fileVersion": "0.11.4.0"
+          }
+        }
+      },
+      "Microsoft.NETCore.Platforms/1.1.0": {},
+      "NETStandard.Library/2.0.3": {
+        "dependencies": {
+          "Microsoft.NETCore.Platforms": "1.1.0"
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MethodBoundaryAspect.Fody/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FodyHelpers/6.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-lnH61lrYnFKjvrdYZvazzGPvSaRz+5FDx/KLwWJ/j83mO/N48W81VGT+eYYZ8RZ29cd9tikqv6XLBq5cssVoSw==",
+      "path": "fodyhelpers/6.7.0",
+      "hashPath": "fodyhelpers.6.7.0.nupkg.sha512"
+    },
+    "Microsoft.NETCore.Platforms/1.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kz0PEW2lhqygehI/d6XsPCQzD7ff7gUJaVGPVETX611eadGsA3A877GdSlU0LRVMCTH/+P3o2iDTak+S08V2+A==",
+      "path": "microsoft.netcore.platforms/1.1.0",
+      "hashPath": "microsoft.netcore.platforms.1.1.0.nupkg.sha512"
+    },
+    "NETStandard.Library/2.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-st47PosZSHrjECdjeIzZQbzivYBJFv6P2nv4cj2ypdI204DO+vZ7l5raGMiX4eXMJ53RfOIg+/s4DHVZ54Nu2A==",
+      "path": "netstandard.library/2.0.3",
+      "hashPath": "netstandard.library.2.0.3.nupkg.sha512"
+    }
+  }
+}

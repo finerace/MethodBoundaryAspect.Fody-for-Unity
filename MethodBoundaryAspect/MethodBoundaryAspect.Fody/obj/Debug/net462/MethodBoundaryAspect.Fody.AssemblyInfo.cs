@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MethodBoundaryAspect.Fody")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7951f361fab5af40d61b4cdf177792ea70039f3c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+032dc68c1ed4447f4568c1fc1c75330842abe652")]
 [assembly: System.Reflection.AssemblyProductAttribute("MethodBoundaryAspect.Fody")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MethodBoundaryAspect.Fody")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

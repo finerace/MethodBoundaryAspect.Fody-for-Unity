@@ -44,7 +44,8 @@ namespace MethodBoundaryAspect.Fody
             if (parameterType.IsByReference) // support for ref-Arguments
                 castToType = ((ByReferenceType) castToType).ElementType;
 
-            var castOrUnbox = InstructionBlockCreator.CastValueCurrentlyOnStack(
+            // THE FIX: Changed static call to an instance call through the creator property.
+            var castOrUnbox = _creator.InstructionBlockCreator.CastValueCurrentlyOnStack(
                 castFromType,
                 castToType);
             instructions.AddRange(castOrUnbox);

@@ -19,3 +19,14 @@ D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryA
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.sourcelink.json
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.dll
 D:\sava\sava\UnityProjects\ArtistsSimulator\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.pdb
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\bin\Debug\netstandard2.0\MethodBoundaryAspect.deps.json
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\bin\Debug\netstandard2.0\MethodBoundaryAspect.dll
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\bin\Debug\netstandard2.0\MethodBoundaryAspect.pdb
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.csproj.AssemblyReference.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.AssemblyInfoInputs.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.AssemblyInfo.cs
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.csproj.CoreCompileInputs.cache
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.sourcelink.json
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.dll
+C:\Users\admin\Desktop\MBA\MethodBoundaryAspect.Fody-For-Unity\MethodBoundaryAspect\MethodBoundaryAspect\obj\Debug\netstandard2.0\MethodBoundaryAspect.pdb

@@ -1,49 +1,56 @@
+using System;
+using System.Linq;
 using MethodBoundaryAspect.Fody.Ordering;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using System;
-using System.Linq;
 
 namespace MethodBoundaryAspect.Fody
 {
     public class AspectDataOnAsyncMethod : AspectData
     {
-        TypeReference _stateMachine;
-        MethodDefinition _moveNext;
-        VariableDefinition _stateMachineLocal;
-        FieldReference _tagField;
-        FieldReference _aspectField;
+        private readonly TypeReference _stateMachine;
+        private MethodDefinition _moveNext;
+        private readonly VariableDefinition _stateMachineLocal;
+        private FieldReference _tagField;
+        private FieldReference _aspectField;
 
         public AspectDataOnAsyncMethod(MethodDefinition moveNext, AspectInfo info, AspectMethods methods, MethodDefinition method, ModuleDefinition module)
-            : base(info, methods, method, module)
+            : base(info, methods, method, module, moveNext)
         {
             _moveNext = moveNext;
-            
-            // Безопасный поиск state machine переменной
-            _stateMachineLocal = method.Body.Variables.FirstOrDefault(v => v.VariableType.Resolve() == moveNext.DeclaringType);
-            
+
+            _stateMachineLocal =
+                method.Body.Variables.FirstOrDefault(v => v.VariableType.Resolve() == moveNext.DeclaringType);
+
             if (_stateMachineLocal == null)
             {
-                // Собираем детальную информацию для отладки
-                var variables = string.Join(", ", method.Body.Variables.Select((v, i) => $"var{i}:{v.VariableType.FullName}"));
+                var variables = string.Join(", ",
+                    method.Body.Variables.Select((v, i) => $"var{i}:{v.VariableType.FullName}"));
                 var nestedTypes = string.Join(", ", method.DeclaringType.NestedTypes.Select(t => t.Name));
                 var instructions = string.Join(" -> ", method.Body.Instructions.Take(10).Select(i => $"{i.OpCode}"));
-                
-                throw new InvalidOperationException($"Could not find state machine variable in method {method.FullName}. " +
+
+                throw new InvalidOperationException(
+                    $"Could not find state machine variable in method {method.FullName}. " +
                     $"MoveNext declaring type: {moveNext.DeclaringType.FullName}. " +
                     $"Method variables: [{variables}]. " +
                     $"Nested types: [{nestedTypes}]. " +
                     $"Method instructions (first 10): {instructions}. " +
-                    $"This suggests the method was incorrectly identified as async or has unexpected structure.");
+                    "This suggests the method was incorrectly identified as async or has unexpected structure.");
             }
-            
+
             _stateMachine = _stateMachineLocal.VariableType;
         }
 
         public override void EnsureTagStorage()
         {
             var systemObject = _referenceFinder.GetTypeReference(typeof(object));
-            _tagField = _module.ImportReference(_stateMachine.AddPublicInstanceField(systemObject));
+
+            var stateMachineTypeDef = _stateMachine.Resolve();
+            var tagFieldDef = stateMachineTypeDef.AddPublicInstanceFieldDefinition(systemObject);
+
+            var tagFieldRef = new FieldReference(tagFieldDef.Name, tagFieldDef.FieldType, _stateMachine);
+    
+            _tagField = _module.ImportReference(tagFieldRef, _context);
 
             TagPersistable = new FieldPersistable(new VariablePersistable(_stateMachineLocal), _tagField);
         }
@@ -51,7 +58,13 @@ namespace MethodBoundaryAspect.Fody
         public override InstructionBlockChain CreateAspectInstance()
         {
             var aspectTypeReference = _module.ImportReference(Info.AspectAttribute.AttributeType);
-            _aspectField = _module.ImportReference(_stateMachine.AddPublicInstanceField(aspectTypeReference));
+
+            var stateMachineTypeDef = _stateMachine.Resolve();
+            var aspectFieldDef = stateMachineTypeDef.AddPublicInstanceFieldDefinition(aspectTypeReference);
+
+            var aspectFieldRef = new FieldReference(aspectFieldDef.Name, aspectFieldDef.FieldType, _stateMachine);
+    
+            _aspectField = _module.ImportReference(aspectFieldRef, _context);
 
             var loadMachine = new VariablePersistable(_stateMachineLocal).Load(true, false);
 
@@ -68,52 +81,45 @@ namespace MethodBoundaryAspect.Fody
             AspectPersistable = new FieldPersistable(new VariablePersistable(_stateMachineLocal), _aspectField);
             return newObjectAspectBlockChain;
         }
-
+        
         public IPersistable GetMoveNextExecutionArgs(IPersistable executionArgs)
         {
             var fieldExecutionArgs = executionArgs as FieldPersistable;
-            var sm = StateMachineFromMoveNext;
-            return new FieldPersistable(new ThisLoadable(sm), fieldExecutionArgs.Field.AsDefinedOn(sm));
-        }
 
-        TypeReference StateMachineFromMoveNext
-        {
-            get
-            {
-                if (!_stateMachine.ContainsGenericParameter)
-                    return _stateMachine;
-
-                var smType = _stateMachine.Resolve();
-                var result = smType.MakeGenericType(smType.GenericParameters.ToArray());
-                return result;
-            }
+            return new FieldPersistable(new ThisLoadable(_stateMachine),
+                fieldExecutionArgs.Field.AsDefinedOn(_stateMachine));
         }
 
         public InstructionBlockChain LoadTagInMoveNext(IPersistable executionArgs)
         {
+            // FIX: Pass the generic context (_context) to the reference finder.
             var setMethod = _referenceFinder.GetMethodReference(executionArgs.PersistedType,
-                    md => md.Name == "set_MethodExecutionTag");
-            var sm = StateMachineFromMoveNext;
+                md => md.Name == "set_MethodExecutionTag", _context);
 
-            return _creator.CallVoidMethod(setMethod, GetMoveNextExecutionArgs(executionArgs),
-                new FieldPersistable(new ThisLoadable(sm), _tagField.AsDefinedOn(sm)));
+            var smPersistable = new ThisLoadable(_stateMachine);
+            var tagPersistable = new FieldPersistable(smPersistable, _tagField.AsDefinedOn(_stateMachine));
+
+            return _creator.CallVoidMethod(setMethod, GetMoveNextExecutionArgs(executionArgs), tagPersistable);
         }
 
-        public InstructionBlockChain CallOnExceptionInMoveNext(IPersistable executionArgs, VariableDefinition exceptionLocal)
-        {
-            var onExceptionMethodRef = _referenceFinder.GetMethodReference(Info.AspectAttribute.AttributeType,
-                AspectMethodCriteria.IsOnExceptionMethod);
 
+        public InstructionBlockChain CallOnExceptionInMoveNext(IPersistable executionArgs,
+            VariableDefinition exceptionLocal)
+        {
+            // FIX: Pass the generic context (_context) to the reference finder.
+            var onExceptionMethodRef = _referenceFinder.GetMethodReference(Info.AspectAttribute.AttributeType,
+                AspectMethodCriteria.IsOnExceptionMethod, _context);
+
+            // FIX: Pass the generic context (_context) to the reference finder.
             var setMethod = _referenceFinder.GetMethodReference(executionArgs.PersistedType,
-                md => md.Name == "set_Exception");
+                md => md.Name == "set_Exception", _context);
 
             var setExceptionOnArgsBlock = _creator.CallVoidMethod(setMethod, GetMoveNextExecutionArgs(executionArgs),
                 new VariablePersistable(exceptionLocal));
 
-            var sm = StateMachineFromMoveNext;
-            var smPersistable = new ThisLoadable(sm);
+            var smPersistable = new ThisLoadable(_stateMachine);
+            var aspectPersistable = new FieldPersistable(smPersistable, _aspectField.AsDefinedOn(_stateMachine));
 
-            var aspectPersistable = new FieldPersistable(smPersistable, _aspectField.AsDefinedOn(sm));
             var callOnExceptionBlock = _creator.CallVoidMethod(onExceptionMethodRef,
                 aspectPersistable, GetMoveNextExecutionArgs(executionArgs));
 
@@ -123,32 +129,28 @@ namespace MethodBoundaryAspect.Fody
             return callAspectOnExceptionBlockChain;
         }
 
-        /// <summary>
-        /// Создает вызов OnExit в MoveNext методе state machine
-        /// </summary>
         public InstructionBlockChain CallOnExitInMoveNext(IPersistable executionArgs, IPersistable returnValue = null)
         {
+            // FIX: Pass the generic context (_context) to the reference finder.
             var onExitMethodRef = _referenceFinder.GetMethodReference(Info.AspectAttribute.AttributeType,
-                AspectMethodCriteria.IsOnExitMethod);
+                AspectMethodCriteria.IsOnExitMethod, _context);
 
-            var sm = StateMachineFromMoveNext;
-            var smPersistable = new ThisLoadable(sm);
-
-            var aspectPersistable = new FieldPersistable(smPersistable, _aspectField.AsDefinedOn(sm));
+            var smPersistable = new ThisLoadable(_stateMachine);
+            var aspectPersistable = new FieldPersistable(smPersistable, _aspectField.AsDefinedOn(_stateMachine));
 
             var callOnExitBlockChain = new InstructionBlockChain();
 
-            // Если есть return value - устанавливаем его в executionArgs
             if (returnValue != null)
             {
+                // FIX: Pass the generic context (_context) to the reference finder.
                 var setReturnValueMethod = _referenceFinder.GetMethodReference(executionArgs.PersistedType,
-                    md => md.Name == "set_ReturnValue");
+                    md => md.Name == "set_ReturnValue", _context);
 
-                var setReturnValueBlock = _creator.CallVoidMethod(setReturnValueMethod, GetMoveNextExecutionArgs(executionArgs), returnValue);
+                var setReturnValueBlock = _creator.CallVoidMethod(setReturnValueMethod,
+                    GetMoveNextExecutionArgs(executionArgs), returnValue);
                 callOnExitBlockChain.Add(setReturnValueBlock);
             }
 
-            // Вызываем OnExit
             var callOnExitBlock = _creator.CallVoidMethod(onExitMethodRef,
                 aspectPersistable, GetMoveNextExecutionArgs(executionArgs));
             callOnExitBlockChain.Add(callOnExitBlock);

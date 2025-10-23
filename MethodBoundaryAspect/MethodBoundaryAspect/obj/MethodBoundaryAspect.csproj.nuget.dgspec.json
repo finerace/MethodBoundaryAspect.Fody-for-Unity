@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj": {}
+    "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj": {}
   },
   "projects": {
-    "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj": {
+    "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj",
+        "projectUniqueName": "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj",
         "projectName": "MethodBoundaryAspect.Fody",
-        "projectPath": "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj",
+        "projectPath": "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect\\MethodBoundaryAspect.csproj",
         "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
-        "outputPath": "D:\\sava\\sava\\UnityProjects\\ArtistsSimulator\\MethodBoundaryAspect\\MethodBoundaryAspect\\obj\\",
+        "outputPath": "C:\\Users\\admin\\Desktop\\MBA\\MethodBoundaryAspect.Fody-For-Unity\\MethodBoundaryAspect\\MethodBoundaryAspect\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "configFilePaths": [
@@ -42,6 +42,9 @@
           }
         },
         "warningProperties": {
+          "noWarn": [
+            "NU5118"
+          ],
           "warnAsError": [
             "NU1605"
           ]

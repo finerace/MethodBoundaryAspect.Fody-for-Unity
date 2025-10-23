@@ -11,7 +11,7 @@ namespace MethodBoundaryAspect.Fody.Attributes
         public virtual string NamespaceFilter { get; set; }
         public virtual string TypeNameFilter { get; set; }
         public virtual string MethodNameFilter { get; set; }
-
+        
         public virtual void OnEntry(MethodExecutionArgs arg)
         {
         }

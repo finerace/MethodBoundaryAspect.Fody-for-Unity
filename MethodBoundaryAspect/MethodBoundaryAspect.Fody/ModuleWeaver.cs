@@ -13,25 +13,6 @@ using Mono.Collections.Generic;
 
 namespace MethodBoundaryAspect.Fody
 {
-    /// <summary>
-    /// Used tools: 
-    /// - .NET Reflector + Addins "Reflexil" / IL Spy / LinqPad
-    /// - PEVerify
-    /// - ILDasm
-    /// - Mono.Cecil
-    /// - Fody
-    /// 
-    /// TODO:
-    /// Fix pdb files -> fixed
-    /// Intetgrate with Fody -> ok
-    /// Support for class aspects -> ok
-    /// Support for assembly aspects -> ok
-    /// Implement CompileTimeValidate
-    /// Optimize weaving: Dont generate code of "OnXXX()" method is empty or not used -> ok
-    /// Optimize weaving: remove runtime dependency on "MethodBoundaryAspect.Attributes" assembly
-    /// Optimize weaving: only put arguments in MethodExecutionArgs if they are accessed in "OnXXX()" method
-    /// Optimize weaving: store GetCurrentMethod() result in static Dictionary in MethodBoundaryAspect with generated id for lookup to prevent reflection penalty -> ok
-    /// </summary>
     public class ModuleWeaver : BaseModuleWeaver
     {
         private MethodInfoCompileTimeWeaver _methodInfoCompileTimeWeaver;
@@ -64,7 +45,7 @@ namespace MethodBoundaryAspect.Fody
             yield return "System.Diagnostics";
             yield return "netstandard";
         }
-
+        
         private string CreateShadowAssemblyPath(string assemblyPath, string prefix)
         {
             var fileInfoSource = new FileInfo(assemblyPath);
@@ -131,7 +112,7 @@ namespace MethodBoundaryAspect.Fody
         {
             PropertyFilter.Add(propertyFilter);
         }
-
+        
         private void Execute(ModuleDefinition module)
         {
             _methodInfoCompileTimeWeaver = new MethodInfoCompileTimeWeaver(module)
@@ -142,38 +123,38 @@ namespace MethodBoundaryAspect.Fody
             var assemblyMethodBoundaryAspects = module.Assembly.CustomAttributes;
 
             foreach (var type in module.Types.ToList())
-                WeaveTypeAndNestedTypes(module, type, assemblyMethodBoundaryAspects);
+            {
+                WeaveTypeAndNestedTypes(module, type, assemblyMethodBoundaryAspects, new HashSet<MethodDefinition>());
+            }
 
             _methodInfoCompileTimeWeaver.Finish();
         }
 
         private void WeaveTypeAndNestedTypes(ModuleDefinition module, TypeDefinition type,
-            Collection<CustomAttribute> assemblyMethodBoundaryAspects)
+            Collection<CustomAttribute> assemblyMethodBoundaryAspects, HashSet<MethodDefinition> methodsToSkip)
         {
-            // Сначала обрабатываем анонимные методы в этом типе
             AttributeInheritanceManager.ProcessTypeForAnonymousMethods(type, module);
             
-            WeaveType(module, type, assemblyMethodBoundaryAspects);
+            WeaveType(module, type, assemblyMethodBoundaryAspects, methodsToSkip);
+
             if (type.HasNestedTypes)
             {
                 var classMethodBoundaryAspects = new Collection<CustomAttribute>();
                 foreach (var assemblyAspect in assemblyMethodBoundaryAspects)
                     classMethodBoundaryAspects.Add(assemblyAspect);
                 foreach (var classAspect in type.CustomAttributes)
-                {
-                    // Убираем раннее возвращение для CompilerGeneratedAttribute
-                    // Теперь обрабатываем compiler-generated классы как обычные nested типы
                     classMethodBoundaryAspects.Add(classAspect);
-                }
-                foreach (var nestedType in type.NestedTypes)
-                    WeaveTypeAndNestedTypes(module, nestedType, classMethodBoundaryAspects);
+
+                foreach (var nestedType in type.NestedTypes.ToList())
+                    WeaveTypeAndNestedTypes(module, nestedType, classMethodBoundaryAspects, methodsToSkip);
             }
         }
 
         private void WeaveType(
             ModuleDefinition module, 
             TypeDefinition type, 
-            Collection<CustomAttribute> assemblyMethodBoundaryAspects)
+            Collection<CustomAttribute> assemblyMethodBoundaryAspects,
+            HashSet<MethodDefinition> methodsToSkip)
         {
             var classMethodBoundaryAspects = type.CustomAttributes;
 
@@ -188,24 +169,67 @@ namespace MethodBoundaryAspect.Fody
             var weavedAtLeastOneMethod = false;
             foreach (var method in type.Methods.ToList())
             {
-                if (!IsWeavableMethod(method))
+                // THE DEFINITIVE FIX:
+                // We handle iterators separately. We find the stub, transfer attributes to MoveNext,
+                // and then explicitly skip the stub. The recursive weaver will then find MoveNext
+                // and weave it with a *regular* MethodWeaver, which is the correct behavior.
+                var iteratorAttribute = method.CustomAttributes.FirstOrDefault(a => a.AttributeType.FullName == typeof(IteratorStateMachineAttribute).FullName);
+                if (iteratorAttribute != null)
+                {
+                    var stateMachineType = (iteratorAttribute.ConstructorArguments[0].Value as TypeReference)?.Resolve();
+                    var moveNextMethod = stateMachineType?.Methods.FirstOrDefault(m => m.Name == "MoveNext");
+                    if (moveNextMethod != null)
+                    {
+                        AttributeInheritanceManager.InheritAttributes(moveNextMethod, method, module);
+                        methodsToSkip.Add(method); // Weave MoveNext, not the stub.
+                    }
+                }
+                
+                if (!IsWeavableMethod(method) || methodsToSkip.Contains(method))
                     continue;
+
+                // For async methods, we add their MoveNext to the skip list to prevent the recursive
+                // weaver from processing it directly. The AsyncMethodWeaver will handle it.
+                var asyncAttribute = method.CustomAttributes.FirstOrDefault(a => a.AttributeType.FullName.Equals(typeof(AsyncStateMachineAttribute).FullName));
+                if (asyncAttribute != null)
+                {
+                    var moveNextMethod = ((TypeReference)asyncAttribute.ConstructorArguments[0].Value).Resolve().Methods.First(m => m.Name == "MoveNext");
+                    methodsToSkip.Add(moveNextMethod);
+                }
+                else if (MethodWeaverFactory.IsUniTaskAsyncMethod(method))
+                {
+                    var moveNextMethod = MethodWeaverFactory.FindUniTaskMoveNextMethod(method);
+                    if (moveNextMethod != null)
+                    {
+                        methodsToSkip.Add(moveNextMethod);
+                    }
+                }
 
                 Collection<CustomAttribute> methodMethodBoundaryAspects;
 
                 if (method.IsGetter)
-                    methodMethodBoundaryAspects = propertyGetters[method].CustomAttributes;
+                    methodMethodBoundaryAspects = propertyGetters.ContainsKey(method) ? propertyGetters[method].CustomAttributes : method.CustomAttributes;
                 else if (method.IsSetter)
-                    methodMethodBoundaryAspects = propertySetters[method].CustomAttributes;
+                    methodMethodBoundaryAspects = propertySetters.ContainsKey(method) ? propertySetters[method].CustomAttributes : method.CustomAttributes;
                 else
                     methodMethodBoundaryAspects = method.CustomAttributes;
 
                 var methodVisibility = GetMethodVisibility(method);
 
-                var aspectInfos = assemblyMethodBoundaryAspects
+                var allAspectAttributes = assemblyMethodBoundaryAspects
                     .Concat(classMethodBoundaryAspects)
                     .Concat(methodMethodBoundaryAspects)
-                    .Where(IsMethodBoundaryAspect)
+                    .Where(IsMethodBoundaryAspect);
+
+                // Group attributes by their type name. If an aspect is defined on multiple levels
+                // (e.g., on the class and also inherited onto the method), this will group them together.
+                // By taking the 'Last()' from each group, we select the most specific one,
+                // thanks to the Concat order (method-level attributes come last).
+                var distinctAspectAttributes = allAspectAttributes
+                    .GroupBy(attr => attr.AttributeType.FullName)
+                    .Select(group => group.Last());
+
+                var aspectInfos = distinctAspectAttributes
                     .Select(x => new AspectInfo(x))
                     .Where(info => info.HasTargetMemberAttribute(methodVisibility))
                     .Where(info => string.IsNullOrEmpty(info.NamespaceFilter) || Regex.IsMatch(type.Namespace, info.NamespaceFilter))
@@ -213,6 +237,7 @@ namespace MethodBoundaryAspect.Fody
                     .Where(info => string.IsNullOrEmpty(info.MethodNameFilter) || Regex.IsMatch(method.Name, info.MethodNameFilter))
                     .Where(x => !IsSelfWeaving(type, x))
                     .ToList();
+
                 if (aspectInfos.Count == 0)
                     continue;
                 
@@ -262,7 +287,7 @@ namespace MethodBoundaryAspect.Fody
         private bool IsMethodBoundaryAspect(TypeDefinition attributeTypeDefinition)
         {
             var currentType = attributeTypeDefinition?.BaseType;
-            if (currentType == null) // can be null for Visual Basic Winforms projects, see https://github.com/vescon/MethodBoundaryAspect.Fody/issues/126
+            if (currentType == null)
                 return false;
 
             do
@@ -283,26 +308,34 @@ namespace MethodBoundaryAspect.Fody
 
         private bool IsWeavableMethod(MethodDefinition method)
         {
-            var fullName = method.DeclaringType.FullName;
-            var name = method.Name;
-
             if (IsIgnoredByWeaving(method))
                 return false;
 
-            if (IsUserFiltered(fullName, name))
+            if (IsUserFiltered(method.DeclaringType.FullName, method.Name))
                 return false;
 
-            if (IsDelegate(method))
+            if (!method.HasBody) // Replaces IsDelegate
+                return false;
+                
+            if (method.IsAbstract || method.IsConstructor || method.IsPInvokeImpl)
                 return false;
 
-            return !(method.IsAbstract // abstract or interface method
-                     || method.IsConstructor
-                     || method.IsPInvokeImpl); // extern
-        }
+            // THE DEFINITIVE FIX 2:
+            // Stricter filtering for compiler-generated types. We only want to weave
+            // MoveNext methods or user-defined anonymous methods/lambdas, not other
+            // compiler helpers (e.g., for awaiters).
+            if (AnonymousMethodParser.IsCompilerGeneratedClass(method.DeclaringType))
+            {
+                if (AnonymousMethodParser.IsMoveNext(method))
+                    return true; // Always weave MoveNext if found.
 
-        private bool IsDelegate(MethodDefinition method)
-        {
-            return !method.HasBody;
+                if (AnonymousMethodParser.IsAnonymousMethod(method))
+                    return true; // Always weave user lambdas/local functions.
+
+                return false; // Skip any other compiler-generated helper methods.
+            }
+
+            return true;
         }
 
         private bool IsUserFiltered(string fullName, string name)

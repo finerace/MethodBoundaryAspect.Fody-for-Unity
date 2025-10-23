@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025 VESCON GmbH")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+026b61f5baf208b8f46ba5703145658457c618e9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+032dc68c1ed4447f4568c1fc1c75330842abe652")]
 [assembly: System.Reflection.AssemblyProductAttribute("MethodBoundaryAspect")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MethodBoundaryAspect")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

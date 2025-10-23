@@ -94,10 +94,14 @@ namespace MethodBoundaryAspect.Fody
 
             return null;
         }
-
-        /// <summary>
-        /// Получает информацию о родительском методе для анонимного метода
-        /// </summary>
+        
+        public static bool IsMoveNext(MethodDefinition method)
+        {
+            return method.Name == "MoveNext" &&
+                   method.DeclaringType.Interfaces.Any(i =>
+                       i.InterfaceType.FullName == "System.Collections.IEnumerator");
+        }
+        
         public static ParentMethodInfo GetParentMethodInfo(MethodDefinition anonymousMethod)
         {
             if (!IsAnonymousMethod(anonymousMethod))
